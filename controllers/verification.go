@@ -189,8 +189,10 @@ func (c *ApiController) SendVerificationCode() {
 	var user *object.User
 	// checkUser != "", means method is ForgetVerification
 	if vform.CheckUser != "" {
-		owner := application.Organization
+		// owner := application.Organization
+		owner := strings.Split(vform.ApplicationId, "/")[0]
 		user, err = object.GetUser(util.GetId(owner, vform.CheckUser))
+
 		if err != nil {
 			c.ResponseError(err.Error())
 			return
