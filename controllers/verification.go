@@ -189,7 +189,8 @@ func (c *ApiController) SendVerificationCode() {
 	var user *object.User
 	// checkUser != "", means method is ForgetVerification
 	if vform.CheckUser != "" {
-		// owner := application.Organization
+		// owner := application.Organization // this only works if you do not have shared-applications
+		// ApplicationId is in format "owner/name", get the organization from there because we now have to support shared-applications
 		owner := strings.Split(vform.ApplicationId, "/")[0]
 		user, err = object.GetUser(util.GetId(owner, vform.CheckUser))
 
