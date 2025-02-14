@@ -28,14 +28,7 @@ import copy from "copy-to-clipboard";
 import {CaptchaPreview} from "./common/CaptchaPreview";
 import {CountryCodeSelect} from "./common/select/CountryCodeSelect";
 import * as Web3Auth from "./auth/Web3Auth";
-
-import {Controlled as CodeMirror} from "react-codemirror2";
-import "codemirror/lib/codemirror.css";
-
-require("codemirror/theme/material-darker.css");
-require("codemirror/mode/htmlmixed/htmlmixed");
-require("codemirror/mode/xml/xml");
-require("codemirror/mode/css/css");
+import Editor from "./common/Editor";
 
 const {Option} = Select;
 const {TextArea} = Input;
@@ -467,6 +460,39 @@ class ProviderEditPage extends React.Component {
     this.updateProviderField("issuerUrl", issuerUrl);
   }
 
+  fetchSamlMetadata() {
+    this.setState({
+      metadataLoading: true,
+    });
+    fetch(this.state.requestUrl, {
+      method: "GET",
+    }).then(res => {
+      if (!res.ok) {
+        return Promise.reject("error");
+      }
+      return res.text();
+    }).then(text => {
+      this.updateProviderField("metadata", text);
+      this.parseSamlMetadata();
+      Setting.showMessage("success", i18next.t("general:Successfully added"));
+    }).catch(err => {
+      Setting.showMessage("error", err.message);
+    }).finally(() => {
+      this.setState({
+        metadataLoading: false,
+      });
+    });
+  }
+
+  parseSamlMetadata() {
+    try {
+      this.loadSamlConfiguration();
+      Setting.showMessage("success", i18next.t("provider:Parse metadata successfully"));
+    } catch (err) {
+      Setting.showMessage("error", i18next.t("provider:Can not parse metadata"));
+    }
+  }
+
   renderProvider() {
     return (
       <Card size="small" title={
@@ -789,7 +815,7 @@ class ProviderEditPage extends React.Component {
                 </Col>
               </Row>
               {
-                (this.state.provider.type === "WeChat Pay" || this.state.provider.type === "CUCloud") || (this.state.provider.category === "Email" && (this.state.provider.type === "Azure ACS" || this.state.provider.type === "SendGrid")) ? null : (
+                (this.state.provider.type === "WeChat Pay" || this.state.provider.type === "CUCloud") || (this.state.provider.category === "Email" && (this.state.provider.type === "Azure ACS")) ? null : (
                   <Row style={{marginTop: "20px"}} >
                     <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
                       {this.getClientSecret2Label(this.state.provider)} :
@@ -875,7 +901,7 @@ class ProviderEditPage extends React.Component {
             </Row>
           )
         }
-        {this.state.provider.category === "Storage" || ["Custom HTTP SMS", "Custom HTTP Email", "CUCloud"].includes(this.state.provider.type) ? (
+        {this.state.provider.category === "Storage" || ["Custom HTTP SMS", "Custom HTTP Email", "SendGrid", "CUCloud"].includes(this.state.provider.type) ? (
           <div>
             {["Local File System", "CUCloud"].includes(this.state.provider.type) ? null : (
               <Row style={{marginTop: "20px"}} >
@@ -889,7 +915,7 @@ class ProviderEditPage extends React.Component {
                 </Col>
               </Row>
             )}
-            {["Custom HTTP SMS", "Local File System", "MinIO", "Tencent Cloud COS", "Google Cloud Storage", "Qiniu Cloud Kodo", "Synology", "Casdoor", "CUCloud"].includes(this.state.provider.type) ? null : (
+            {["Custom HTTP SMS", "SendGrid", "Local File System", "MinIO", "Tencent Cloud COS", "Google Cloud Storage", "Qiniu Cloud Kodo", "Synology", "Casdoor", "CUCloud"].includes(this.state.provider.type) ? null : (
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={2}>
                   {Setting.getLabel(i18next.t("provider:Endpoint (Intranet)"), i18next.t("provider:Region endpoint for Intranet"))} :
@@ -901,7 +927,7 @@ class ProviderEditPage extends React.Component {
                 </Col>
               </Row>
             )}
-            {["Custom HTTP SMS", "Local File System", "CUCloud"].includes(this.state.provider.type) ? null : (
+            {["Custom HTTP SMS", "SendGrid", "Local File System", "CUCloud"].includes(this.state.provider.type) ? null : (
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={2}>
                   {["Casdoor"].includes(this.state.provider.type) ?
@@ -915,7 +941,7 @@ class ProviderEditPage extends React.Component {
                 </Col>
               </Row>
             )}
-            {["Custom HTTP SMS", "CUCloud"].includes(this.state.provider.type) ? null : (
+            {["Custom HTTP SMS", "SendGrid", "CUCloud"].includes(this.state.provider.type) ? null : (
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={2}>
                   {Setting.getLabel(i18next.t("provider:Path prefix"), i18next.t("provider:Path prefix - Tooltip"))} :
@@ -927,7 +953,7 @@ class ProviderEditPage extends React.Component {
                 </Col>
               </Row>
             )}
-            {["Custom HTTP SMS", "Synology", "Casdoor", "CUCloud"].includes(this.state.provider.type) ? null : (
+            {["Custom HTTP SMS", "SendGrid", "Synology", "Casdoor", "CUCloud"].includes(this.state.provider.type) ? null : (
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={2}>
                   {Setting.getLabel(i18next.t("provider:Domain"), i18next.t("provider:Domain - Tooltip"))} :
@@ -1034,18 +1060,16 @@ class ProviderEditPage extends React.Component {
             </React.Fragment>
           ) : this.state.provider.category === "Email" ? (
             <React.Fragment>
-              {["SendGrid"].includes(this.state.provider.type) ? null : (
-                <Row style={{marginTop: "20px"}} >
-                  <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
-                    {Setting.getLabel(i18next.t("provider:Host"), i18next.t("provider:Host - Tooltip"))} :
-                  </Col>
-                  <Col span={22} >
-                    <Input prefix={<LinkOutlined />} value={this.state.provider.host} onChange={e => {
-                      this.updateProviderField("host", e.target.value);
-                    }} />
-                  </Col>
-                </Row>
-              )}
+              <Row style={{marginTop: "20px"}} >
+                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                  {Setting.getLabel(i18next.t("provider:Host"), i18next.t("provider:Host - Tooltip"))} :
+                </Col>
+                <Col span={22} >
+                  <Input prefix={<LinkOutlined />} value={this.state.provider.host} onChange={e => {
+                    this.updateProviderField("host", e.target.value);
+                  }} />
+                </Col>
+              </Row>
               {["Azure ACS", "SendGrid"].includes(this.state.provider.type) ? null : (
                 <Row style={{marginTop: "20px"}} >
                   <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
@@ -1096,10 +1120,12 @@ class ProviderEditPage extends React.Component {
                   <Row>
                     <Col span={Setting.isMobile() ? 22 : 11}>
                       <div style={{height: "300px", margin: "10px"}}>
-                        <CodeMirror
+                        <Editor
                           value={this.state.provider.content}
-                          options={{mode: "htmlmixed", theme: "material-darker"}}
-                          onBeforeChange={(editor, data, value) => {
+                          fillHeight
+                          dark
+                          lang="html"
+                          onChange={value => {
                             this.updateProviderField("content", value);
                           }}
                         />
@@ -1244,6 +1270,21 @@ class ProviderEditPage extends React.Component {
               </Row>
               <Row style={{marginTop: "20px"}} >
                 <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
+                  {Setting.getLabel(i18next.t("provider:Metadata url"), i18next.t("provider:Metadata url - Tooltip"))} :
+                </Col>
+                <Col span={6} >
+                  <Input value={this.state.requestUrl} onChange={e => {
+                    this.setState({
+                      requestUrl: e.target.value,
+                    });
+                  }} />
+                </Col>
+                <Col span={16} >
+                  <Button type="primary" loading={this.state.metadataLoading} onClick={() => {this.fetchSamlMetadata();}}>{i18next.t("general:Request")}</Button>
+                </Col>
+              </Row>
+              <Row style={{marginTop: "20px"}} >
+                <Col style={{marginTop: "5px"}} span={(Setting.isMobile()) ? 22 : 2}>
                   {Setting.getLabel(i18next.t("provider:Metadata"), i18next.t("provider:Metadata - Tooltip"))} :
                 </Col>
                 <Col span={22}>
@@ -1255,14 +1296,7 @@ class ProviderEditPage extends React.Component {
               <Row style={{marginTop: "20px"}}>
                 <Col style={{marginTop: "5px"}} span={2} />
                 <Col span={2}>
-                  <Button type="primary" onClick={() => {
-                    try {
-                      this.loadSamlConfiguration();
-                      Setting.showMessage("success", i18next.t("provider:Parse metadata successfully"));
-                    } catch (err) {
-                      Setting.showMessage("error", i18next.t("provider:Can not parse metadata"));
-                    }
-                  }}>
+                  <Button type="primary" onClick={() => {this.parseSamlMetadata();}}>
                     {i18next.t("provider:Parse")}
                   </Button>
                 </Col>

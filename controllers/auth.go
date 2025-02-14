@@ -54,6 +54,11 @@ func tokenToResponse(token *object.Token) *Response {
 
 // HandleLoggedIn ...
 func (c *ApiController) HandleLoggedIn(application *object.Application, user *object.User, form *form.AuthForm) (resp *Response) {
+	if user.IsForbidden {
+		c.ResponseError(c.T("check:The user is forbidden to sign in, please contact the administrator"))
+		return
+	}
+
 	userId := user.GetId()
 
 	clientIp := util.GetClientIpFromRequest(c.Ctx.Request)
@@ -678,10 +683,6 @@ func (c *ApiController) Login() {
 
 			if user != nil && !user.IsDeleted {
 				// Sign in via OAuth (want to sign up but already have account)
-
-				if user.IsForbidden {
-					c.ResponseError(c.T("check:The user is forbidden to sign in, please contact the administrator"))
-				}
 				// sync info from 3rd-party if possible
 				_, err = object.SetUserOAuthProperties(organization, user, provider.Type, userInfo)
 				if err != nil {
@@ -910,11 +911,20 @@ func (c *ApiController) Login() {
 				return
 			}
 
-			err = mfaUtil.Verify(authForm.Passcode)
+			passed, err := c.checkOrgMasterVerificationCode(user, authForm.Passcode)
 			if err != nil {
 				c.ResponseError(err.Error())
 				return
 			}
+
+			if !passed {
+				err = mfaUtil.Verify(authForm.Passcode)
+				if err != nil {
+					c.ResponseError(err.Error())
+					return
+				}
+			}
+
 			c.SetSession("verificationCodeType", "")
 		} else if authForm.RecoveryCode != "" {
 			err = object.MfaRecover(user, authForm.RecoveryCode)
