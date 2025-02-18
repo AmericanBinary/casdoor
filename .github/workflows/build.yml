@@ -129,7 +129,6 @@ jobs:
     name: Release And Push
     runs-on: ubuntu-latest
     permissions: write-all
-    #if: github.repository == 'casdoor/casdoor' && github.event_name == 'push'
     needs: [ frontend, backend, linter, e2e ]
     steps:
       - name: Checkout
