@@ -197,7 +197,8 @@ jobs:
           secrets: |
             "github_token=${{ secrets.GODMODEACTUAL }}"
           tags: |
-             ghcr.io/americanbinary/casdoor-ambit:test
+             ghcr.io/americanbinary/casdoor-ambit:v${{steps.get-current-tag.outputs.tag }}
+             ghcr.io/americanbinary/casdoor-ambit:latest
 
       
       
