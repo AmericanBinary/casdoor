@@ -1,0 +1,30 @@
+Patch Release : (x.x.1 - Fixes and Small Changes)
+
+  Increments the patch version (e.g., 1.0.0 → 1.0.1).
+
+  git commit -m "fix: resolve login issue in Casdoor integration"
+
+
+Minor Release  : (x.1.x - New Features, Backward-Compatible Changes)
+
+  Increments the minor version (e.g., 1.0.0 → 1.1.0)
+
+  git commit -m "feat: add support for multi-factor authentication"
+
+
+Major Release : (2.0.0 - Breaking Changes) 
+
+  Increments the major version (e.g., 1.0.0 → 2.0.0).
+
+Example 1 (Using BREAKING CHANGE in Footer) :
+
+git commit -m "feat: upgrade Casdoor to v2 API
+
+BREAKING CHANGE: The authentication API has changed and requires config updates."
+
+Example 2 (Using ! in Commit Message) :
+
+git commit -m "feat!: migrate Casdoor authentication to new API"
+
+
+
